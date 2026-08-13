@@ -14,6 +14,23 @@ _SEVERITY_COLORS: dict[Severity, str] = {
     Severity.CRITICAL: "red",
 }
 
+# Rango numérico de cada severidad según el orden ya definido por la propia
+# declaración del enum Severity (LOW < MEDIUM < HIGH < CRITICAL).
+_SEVERITY_RANK: dict[Severity, int] = {
+    severity: rank for rank, severity in enumerate(Severity)
+}
+
+
+def _filter_by_min_severity(
+    findings: list[Finding], min_severity: Severity
+) -> list[Finding]:
+    """Filtra findings, conservando solo los de severidad igual o superior a min_severity."""
+    return [
+        finding
+        for finding in findings
+        if _SEVERITY_RANK[finding.severity] >= _SEVERITY_RANK[min_severity]
+    ]
+
 
 def _print_finding(finding: Finding, explanation: str | None) -> None:
     """Imprime un único finding formateado, con color según su severidad."""
@@ -60,6 +77,12 @@ def _print_summary(findings: list[Finding]) -> None:
     help="Omite la capa de IA y solo ejecuta el scanner (útil para pruebas rápidas).",
 )
 @click.option(
+    "--min-severity",
+    type=click.Choice([severity.value for severity in Severity], case_sensitive=False),
+    default=Severity.LOW.value,
+    help="Severidad mínima a incluir (LOW, MEDIUM, HIGH o CRITICAL). Por defecto LOW, que no filtra nada.",
+)
+@click.option(
     "--output",
     type=click.Path(dir_okay=False),
     default=None,
@@ -69,9 +92,12 @@ def _print_summary(findings: list[Finding]) -> None:
         "cualquier otra (incl. '.md') genera Markdown."
     ),
 )
-def main(target_path: str, skip_ai: bool, output: str | None) -> None:
+def main(
+    target_path: str, skip_ai: bool, min_severity: str, output: str | None
+) -> None:
     """Escanea TARGET_PATH en busca de vulnerabilidades con Semgrep y, opcionalmente, las explica con IA."""
     findings = run_semgrep(target_path)
+    findings = _filter_by_min_severity(findings, Severity(min_severity.upper()))
 
     if not findings:
         click.secho("No se encontraron problemas.", fg="green", bold=True)
