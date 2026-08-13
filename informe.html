@@ -1,0 +1,360 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Informe de Seguridad</title>
+<style>
+:root {
+        --bg: #0a0e14;
+        --surface: #10161f;
+        --surface-raised: #161d29;
+        --border: #232c3a;
+        --border-strong: #2f3a4a;
+        --text: #e8edf4;
+        --text-muted: #7c8899;
+        --text-faint: #4d5666;
+
+        --accent: #4dd8c0;
+        --accent-soft: rgba(77, 216, 192, 0.12);
+
+        --red: #f2545b;
+        --red-soft: rgba(242, 84, 91, 0.12);
+        --amber: #e3a008;
+        --amber-soft: rgba(227, 160, 8, 0.12);
+        --green: #3ecf8e;
+        --green-soft: rgba(62, 207, 142, 0.12);
+
+        --font-mono: ui-monospace, "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+        --font-sans: -apple-system, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    @media (prefers-reduced-motion: reduce) {
+        * { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; }
+    }
+
+    body {
+        margin: 0;
+        padding: 0 1.5rem 4rem;
+        background: var(--bg);
+        color: var(--text);
+        font-family: var(--font-sans);
+        line-height: 1.6;
+        font-size: 15px;
+    }
+
+    main {
+        max-width: 880px;
+        margin: 0 auto;
+    }
+
+    /* ---------- Cabecera ---------- */
+
+    .report-header {
+        position: relative;
+        overflow: hidden;
+        margin: 0 -1.5rem 2.5rem;
+        padding: 3rem 1.5rem 2.25rem;
+        border-bottom: 1px solid var(--border);
+        background-image: radial-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+        background-size: 22px 22px;
+    }
+
+    .scan-beam {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: -10%;
+        height: 2px;
+        background: linear-gradient(90deg, transparent, var(--accent), transparent);
+        opacity: 0;
+        animation: scan-sweep 1.6s cubic-bezier(.4, 0, .2, 1) 0.15s 1 both;
+    }
+
+    @keyframes scan-sweep {
+        0%   { top: -5%;   opacity: 0; }
+        12%  { opacity: 1; }
+        88%  { opacity: 1; }
+        100% { top: 100%;  opacity: 0; }
+    }
+
+    .eyebrow {
+        font-family: var(--font-mono);
+        font-size: 0.75rem;
+        font-weight: 600;
+        letter-spacing: 0.14em;
+        color: var(--accent);
+        margin: 0 0 0.75rem 0;
+    }
+
+    h1 {
+        margin: 0 0 0.9rem 0;
+        font-size: 1.9rem;
+        font-weight: 700;
+        letter-spacing: -0.01em;
+        max-width: 620px;
+        position: relative;
+        z-index: 1;
+    }
+
+    .target-path {
+        font-family: var(--font-mono);
+        font-size: 0.85rem;
+        color: var(--text-muted);
+        margin: 0;
+        position: relative;
+        z-index: 1;
+        word-break: break-all;
+    }
+
+    .target-path .prompt {
+        color: var(--accent);
+        margin-right: 0.5em;
+    }
+
+    .target-path code {
+        color: var(--text);
+    }
+
+    /* ---------- Barra de estadísticas ---------- */
+
+    h2 {
+        font-family: var(--font-mono);
+        font-size: 0.8rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: var(--text-faint);
+        margin: 0 0 1rem 0;
+    }
+
+    .stat-bar {
+        display: flex;
+        flex-wrap: wrap;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        overflow: hidden;
+        margin-bottom: 2.5rem;
+    }
+
+    .stat-block {
+        flex: 1 1 120px;
+        padding: 1.1rem 1.3rem;
+        border-right: 1px solid var(--border);
+        background: var(--surface);
+    }
+
+    .stat-block:last-child { border-right: none; }
+
+    .stat-number {
+        display: block;
+        font-family: var(--font-mono);
+        font-size: 1.7rem;
+        font-weight: 700;
+        line-height: 1.1;
+    }
+
+    .stat-label {
+        display: block;
+        margin-top: 0.3rem;
+        font-size: 0.72rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--text-muted);
+    }
+
+    .stat-block.sev-critical .stat-number,
+    .stat-block.sev-high .stat-number { color: var(--red); }
+    .stat-block.sev-medium .stat-number { color: var(--amber); }
+    .stat-block.sev-low .stat-number { color: var(--green); }
+
+    /* ---------- Tarjetas de hallazgos ---------- */
+
+    .findings {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .finding-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-left: 3px solid var(--border-strong);
+        border-radius: 8px;
+        padding: 1.3rem 1.5rem;
+    }
+
+    .finding-card.sev-critical,
+    .finding-card.sev-high { border-left-color: var(--red); }
+    .finding-card.sev-medium { border-left-color: var(--amber); }
+    .finding-card.sev-low { border-left-color: var(--green); }
+
+    .finding-top {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 1rem;
+        flex-wrap: wrap;
+        margin-bottom: 0.6rem;
+    }
+
+    .badge {
+        display: inline-block;
+        font-family: var(--font-mono);
+        font-size: 0.7rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        padding: 0.2rem 0.55rem;
+        border-radius: 5px;
+    }
+
+    .sev-critical .badge, .sev-high .badge {
+        background: var(--red-soft); color: var(--red);
+    }
+    .sev-medium .badge { background: var(--amber-soft); color: var(--amber); }
+    .sev-low .badge { background: var(--green-soft); color: var(--green); }
+
+    .finding-location {
+        font-family: var(--font-mono);
+        font-size: 0.78rem;
+        color: var(--text-faint);
+    }
+
+    .finding-card h3 {
+        margin: 0 0 0.7rem 0;
+        font-family: var(--font-mono);
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: var(--text);
+        word-break: break-word;
+    }
+
+    .finding-message {
+        margin: 0;
+        color: var(--text-muted);
+    }
+
+    .finding-block {
+        margin-top: 1.1rem;
+        padding-top: 1.1rem;
+        border-top: 1px solid var(--border);
+    }
+
+    .block-label {
+        font-family: var(--font-mono);
+        font-size: 0.7rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--accent);
+        margin-bottom: 0.5rem;
+    }
+
+    .explanation-block {
+        white-space: pre-wrap;
+        color: var(--text);
+    }
+
+    .fix-block pre {
+        background: #05070a;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 0.9rem 1rem;
+        overflow-x: auto;
+        margin: 0;
+    }
+
+    .fix-block code {
+        font-family: var(--font-mono);
+        font-size: 0.82rem;
+        color: #d1f7ec;
+        white-space: pre;
+    }
+</style>
+</head>
+<body>
+<main>
+<header class="report-header">
+<div class="scan-beam"></div>
+<div class="eyebrow">Security Scan Report</div>
+<h1>Informe de Seguridad</h1>
+<p class="target-path"><span class="prompt">$</span> scan <code>examples/vulnerable_app</code></p>
+</header>
+<h2>Resumen</h2>
+<div class="stat-bar">
+<div class="stat-block">
+            <span class="stat-number">2</span>
+            <span class="stat-label">Total</span>
+        </div>
+<div class="stat-block sev-high">
+            <span class="stat-number">1</span>
+            <span class="stat-label">HIGH</span>
+        </div>
+<div class="stat-block sev-medium">
+            <span class="stat-number">1</span>
+            <span class="stat-label">MEDIUM</span>
+        </div>
+</div>
+<h2>Hallazgos</h2>
+<div class="findings">
+<article class="finding-card sev-high">
+<div class="finding-top">
+<span class="badge">HIGH</span>
+<span class="finding-location">examples/vulnerable_app/app.py:7</span>
+</div>
+<h3>python.sqlalchemy.security.sqlalchemy-execute-raw-query.sqlalchemy-execute-raw-query</h3>
+<p class="finding-message">Avoiding SQL string concatenation: untrusted input concatenated with raw SQL query can result in SQL Injection. In order to execute raw query safely, prepared statement should be used. SQLAlchemy provides TextualSQL to easily used prepared statement with named parameters. For complex SQL composition, use SQL Expression Language or Schema Definition Language. In most cases, SQLAlchemy ORM will be a better option.</p>
+<div class="finding-block"><div class="block-label">Análisis IA</div><div class="explanation-block">1. Este hallazgo representa un riesgo de seguridad porque la concatenación directa de cadenas SQL inconfiables con consultas SQL brutas puede llevar a la inyección SQL. Esto ocurre cuando los datos de usuario no se manejan correctamente y se incorporan en el código SQL sin validación o sanitización adecuada, lo que permite a un atacante ejecutar comandos SQL maliciosos.</div></div>
+<div class="finding-block fix-block"><div class="block-label">Fix sugerido</div><pre><code>Para corregir este problema, es recomendable usar consultas preparadas con parámetros nombrados. SQLAlchemy proporciona una forma fácil de utilizar prepared statements con los métodos `text()` o la expresión de texto (`TextualSQL`). Aquí tienes un ejemplo de cómo hacerlo:
+
+```python
+from sqlalchemy import create_engine, text
+
+# Crear una instancia de la base de datos
+engine = create_engine(&#x27;sqlite:///example.db&#x27;)
+
+# Usar un parámetro nombrado en la consulta SQL
+with engine.connect() as connection:
+    query = text(&quot;SELECT * FROM users WHERE username = :username&quot;)
+    result = connection.execute(query, {&quot;username&quot;: &quot;safe_username&quot;})
+    for row in result:
+        print(row)
+```
+
+En este ejemplo, el parámetro `:username` es un marcador de posición que será reemplazado por el valor proporcionado en la ejecución de la consulta. Esto previene las inyecciones SQL al asegurar que los valores de entrada sean tratados como datos y no como código SQL.</code></pre></div>
+</article>
+<article class="finding-card sev-medium">
+<div class="finding-top">
+<span class="badge">MEDIUM</span>
+<span class="finding-location">examples/vulnerable_app/app.py:13</span>
+</div>
+<h3>python.lang.security.audit.eval-detected.eval-detected</h3>
+<p class="finding-message">Detected the use of eval(). eval() can be dangerous if used to evaluate dynamic content. If this content can be input from outside the program, this may be a code injection vulnerability. Ensure evaluated content is not definable by external sources.</p>
+<div class="finding-block"><div class="block-label">Análisis IA</div><div class="explanation-block">1. El hallazgo representa un riesgo de seguridad debido a la utilización de la función `eval()` en el código. Esta función evalúa dinámicamente una cadena como código Python, lo cual puede ser peligroso si dicha cadena proviene de fuentes externas y no se ha validado adecuadamente. Esto podría permitir inyecciones de código malicioso, dañando o comprometiendo la aplicación.
+
+---
+
+2. Para corregir este problema, debes evitar el uso de `eval()` si es posible. Si necesitas evaluar expresiones, considera usar alternativas más seguras como `ast.literal_eval()`, que solo permite evaluar expresiones literales (como cadenas, números y estructuras de datos simples) en lugar de cualquier código Python. Aquí tienes un ejemplo de cómo podrías reescribir el fragmento de código sin usar `eval()`:</div></div>
+<div class="finding-block fix-block"><div class="block-label">Fix sugerido</div><pre><code>```python
+# Antes: eval(expression)
+result = eval(expression)
+
+# Después: Usando ast.literal_eval para una evaluación segura
+import ast
+
+try:
+    result = ast.literal_eval(expression)
+except (ValueError, SyntaxError):
+    # Manejar el caso en que la expresión no es segura
+    result = None  # O cualquier otra acción de manejo de error adecuada
+```
+
+Recuerda que incluso `ast.literal_eval()` tiene sus limitaciones y solo debe usarse cuando estés completamente seguro del contenido a evaluar. En situaciones donde el contenido puede ser muy complejo o proviene de fuentes inconfiables, es posible que necesites implementar mecanismos adicionales de validación y limpieza para asegurar la seguridad.</code></pre></div>
+</article>
+</div>
+</main>
+</body>
+</html>

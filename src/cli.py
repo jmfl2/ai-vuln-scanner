@@ -3,7 +3,7 @@
 import click
 
 from src.ai.explainer import explain_findings
-from src.report import generate_markdown_report, save_report
+from src.report import generate_html_report, generate_markdown_report, save_report
 from src.scanner.models import ExplainedFinding, Finding, Severity
 from src.scanner.semgrep_runner import run_semgrep
 
@@ -24,6 +24,20 @@ def _print_finding(finding: Finding, explanation: str | None) -> None:
     if explanation:
         click.echo(f"  Explicación IA: {explanation}")
     click.echo()
+
+
+def _generate_report(
+    explained_findings: list[ExplainedFinding], target_path: str, output: str
+) -> tuple[str, str]:
+    """Genera el contenido del informe según la extensión de output.
+
+    Usa generate_html_report si output termina en ".html"; en cualquier otro
+    caso (incluido ".md") usa generate_markdown_report. Devuelve una tupla
+    (contenido, nombre del formato) para poder informar al usuario.
+    """
+    if output.lower().endswith(".html"):
+        return generate_html_report(explained_findings, target_path), "HTML"
+    return generate_markdown_report(explained_findings, target_path), "Markdown"
 
 
 def _print_summary(findings: list[Finding]) -> None:
@@ -49,7 +63,11 @@ def _print_summary(findings: list[Finding]) -> None:
     "--output",
     type=click.Path(dir_okay=False),
     default=None,
-    help="Ruta donde guardar el informe en Markdown (si no se indica, no se genera informe).",
+    help=(
+        "Ruta donde guardar el informe (si no se indica, no se genera informe). "
+        "El formato se decide por la extensión: '.html' genera HTML, "
+        "cualquier otra (incl. '.md') genera Markdown."
+    ),
 )
 def main(target_path: str, skip_ai: bool, output: str | None) -> None:
     """Escanea TARGET_PATH en busca de vulnerabilidades con Semgrep y, opcionalmente, las explica con IA."""
@@ -74,9 +92,11 @@ def main(target_path: str, skip_ai: bool, output: str | None) -> None:
         _print_summary(findings)
 
     if output:
-        report = generate_markdown_report(explained_findings, target_path)
+        report, report_format = _generate_report(explained_findings, target_path, output)
         save_report(report, output)
-        click.secho(f"Informe guardado en: {output}", fg="cyan", bold=True)
+        click.secho(
+            f"Informe ({report_format}) guardado en: {output}", fg="cyan", bold=True
+        )
 
 
 if __name__ == "__main__":
