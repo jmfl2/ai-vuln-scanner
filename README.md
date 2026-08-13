@@ -14,7 +14,7 @@ Los escáneres estáticos como Semgrep son muy buenos detectando patrones insegu
 - **Escaneo estático con Semgrep**, que soporta múltiples lenguajes a través de sus reglas (`--config=auto`).
 - **Explicaciones y fixes generados por IA local** vía Ollama (modelo `qwen2.5-coder:7b`), sin necesidad de API keys ni conexión a servicios externos.
 - **Salida en terminal coloreada por severidad** (rojo para CRITICAL/HIGH, amarillo para MEDIUM, verde para LOW).
-- **Generación de informes en Markdown**, con resumen, badges de emoji por severidad y una sección detallada por hallazgo.
+- **Generación de informes en Markdown o HTML** (autocontenido, con CSS embebido y tema oscuro tipo "consola de seguridad"), con resumen por severidad y una sección/tarjeta detallada por hallazgo. El formato se elige automáticamente según la extensión de `--output` (`.html` → HTML, cualquier otra, incl. `.md` → Markdown).
 - **Parseo robusto de la respuesta del LLM**: usa una expresión regular tolerante a variaciones de formato y una heurística de respaldo (basada en bloques de código Markdown) para separar explicación y fix aunque el modelo no siga el formato pedido al pie de la letra.
 - **Modo `--skip-ai`** para ejecutar solo el escaneo, sin pasar por la IA, útil para pruebas rápidas.
 
@@ -43,6 +43,10 @@ ollama serve
 
 # 7. Descargar el modelo usado para las explicaciones
 ollama pull qwen2.5-coder:7b
+
+# 8. Instalar el proyecto en modo desarrollo (necesario para que
+#    `import src...` funcione correctamente al correr los tests)
+pip install -e .
 ```
 
 ## Uso
@@ -57,6 +61,9 @@ python3 -m src.cli <ruta_a_escanear> --skip-ai
 # Generar además un informe en Markdown
 python3 -m src.cli <ruta_a_escanear> --output informe.md
 
+# Generar un informe en HTML (autocontenido, listo para abrir en el navegador)
+python3 -m src.cli <ruta_a_escanear> --output informe.html
+
 # Combinar ambas opciones
 python3 -m src.cli <ruta_a_escanear> --skip-ai --output informe.md
 ```
@@ -67,19 +74,30 @@ Puedes probarlo directamente contra la app de ejemplo incluida en el repo:
 python3 -m src.cli examples/vulnerable_app
 ```
 
+## Tests
+
+El proyecto usa `pytest`. Los tests usan datos de ejemplo (dicts que simulan
+resultados de Semgrep, respuestas de ejemplo de un LLM) y no requieren tener
+Semgrep ni Ollama corriendo.
+
+```bash
+# Requiere haber instalado el proyecto en modo desarrollo (ver Instalación, paso 8)
+pytest
+```
+
 ## Arquitectura
 
 El proyecto está organizado en capas con responsabilidades separadas:
 
 ```
-Scanner (Semgrep)  →  Modelos de datos (Pydantic)  →  Capa de IA (Ollama)  →  CLI (Click)  →  Generador de informes (Markdown)
+Scanner (Semgrep)  →  Modelos de datos (Pydantic)  →  Capa de IA (Ollama)  →  CLI (Click)  →  Generador de informes (Markdown / HTML)
 ```
 
 - **`src/scanner/semgrep_runner.py`** — ejecuta Semgrep sobre la ruta indicada y parsea su salida JSON.
 - **`src/scanner/models.py`** — modelos Pydantic (`Finding`, `ExplainedFinding`, `Severity`) que dan forma y validación a los datos que circulan entre capas.
 - **`src/ai/`** — construcción del prompt (`prompts.py`) y llamada al modelo local vía Ollama, con parseo de la respuesta (`explainer.py`).
 - **`src/cli.py`** — punto de entrada de línea de comandos (Click), que orquesta el escaneo, la explicación por IA y la impresión de resultados.
-- **`src/report.py`** — genera el informe en Markdown a partir de los hallazgos explicados.
+- **`src/report.py`** — genera el informe en Markdown o HTML a partir de los hallazgos explicados (la lógica de ordenamiento y conteo por severidad se comparte entre ambos formatos).
 
 ## Limitaciones conocidas
 
@@ -95,10 +113,11 @@ Scanner (Semgrep)  →  Modelos de datos (Pydantic)  →  Capa de IA (Ollama)  �
 - **Ollama** — ejecución local del modelo de IA (`qwen2.5-coder:7b`).
 - **Pydantic** — validación y modelado de datos.
 - **Click** — construcción de la interfaz de línea de comandos.
+- **pytest** — tests unitarios del parseo de Semgrep, del parseo de respuestas del LLM y de la generación de informes.
 
 ## Posibles mejoras futuras
 
 - Modo `--fix` que aplique automáticamente los fixes sugeridos sobre el código.
 - Soporte configurable para usar la API de Claude como alternativa a Ollama.
 - Filtrado de resultados por severidad mínima (por ejemplo, `--min-severity HIGH`).
-- Exportación de informes a otros formatos, como JSON o HTML.
+- Exportación de informes a otros formatos, como JSON.
