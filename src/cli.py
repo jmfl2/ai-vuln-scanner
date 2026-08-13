@@ -1,0 +1,83 @@
+"""Punto de entrada de línea de comandos del escáner de vulnerabilidades."""
+
+import click
+
+from src.ai.explainer import explain_findings
+from src.report import generate_markdown_report, save_report
+from src.scanner.models import ExplainedFinding, Finding, Severity
+from src.scanner.semgrep_runner import run_semgrep
+
+_SEVERITY_COLORS: dict[Severity, str] = {
+    Severity.LOW: "green",
+    Severity.MEDIUM: "yellow",
+    Severity.HIGH: "red",
+    Severity.CRITICAL: "red",
+}
+
+
+def _print_finding(finding: Finding, explanation: str | None) -> None:
+    """Imprime un único finding formateado, con color según su severidad."""
+    color = _SEVERITY_COLORS[finding.severity]
+    click.secho(f"[{finding.severity.value}] {finding.rule_id}", fg=color, bold=True)
+    click.echo(f"  {finding.file_path}:{finding.line}")
+    click.echo(f"  {finding.message}")
+    if explanation:
+        click.echo(f"  Explicación IA: {explanation}")
+    click.echo()
+
+
+def _print_summary(findings: list[Finding]) -> None:
+    """Imprime el resumen final: total de findings y desglose por severidad."""
+    click.secho(f"Total de hallazgos: {len(findings)}", bold=True)
+    for severity in Severity:
+        count = sum(1 for f in findings if f.severity == severity)
+        if count:
+            click.secho(
+                f"  {severity.value}: {count}", fg=_SEVERITY_COLORS[severity]
+            )
+
+
+@click.command()
+@click.argument("target_path", type=click.Path(exists=True, file_okay=False))
+@click.option(
+    "--skip-ai",
+    is_flag=True,
+    default=False,
+    help="Omite la capa de IA y solo ejecuta el scanner (útil para pruebas rápidas).",
+)
+@click.option(
+    "--output",
+    type=click.Path(dir_okay=False),
+    default=None,
+    help="Ruta donde guardar el informe en Markdown (si no se indica, no se genera informe).",
+)
+def main(target_path: str, skip_ai: bool, output: str | None) -> None:
+    """Escanea TARGET_PATH en busca de vulnerabilidades con Semgrep y, opcionalmente, las explica con IA."""
+    findings = run_semgrep(target_path)
+
+    if not findings:
+        click.secho("No se encontraron problemas.", fg="green", bold=True)
+
+    if skip_ai:
+        explained_findings: list[ExplainedFinding] = [
+            ExplainedFinding(finding=finding, explanation="", suggested_fix="")
+            for finding in findings
+        ]
+        for finding in findings:
+            _print_finding(finding, explanation=None)
+    else:
+        explained_findings = explain_findings(findings)
+        for explained in explained_findings:
+            _print_finding(explained.finding, explanation=explained.explanation)
+
+    if findings:
+        _print_summary(findings)
+
+    if output:
+        report = generate_markdown_report(explained_findings, target_path)
+        save_report(report, output)
+        click.secho(f"Informe guardado en: {output}", fg="cyan", bold=True)
+
+
+if __name__ == "__main__":
+    main()
