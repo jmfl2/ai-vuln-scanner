@@ -23,3 +23,11 @@ class Finding(BaseModel):
     severity: Severity
     message: str
     code_snippet: str
+
+
+class ExplainedFinding(BaseModel):
+    """Hallazgo enriquecido con una explicación y una sugerencia de arreglo generadas por IA."""
+
+    finding: Finding
+    explanation: str
+    suggested_fix: str
